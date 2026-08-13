@@ -60,4 +60,20 @@ if __name__ == "__main__":
     # Inicia el miniservidor web en segundo plano
     threading.Thread(target=run_web_server, daemon=True).start()
     # Inicia el monitoreo de Shalom
-    ejecutar_monitoreo()
+    def ejecutar_monitoreo():
+    mensaje_inicio = f"🤖 Bot de Shalom activo. Rastreando guía {NRO_GUIA}..."
+    print(mensaje_inicio, flush=True)
+    
+    # MANDA UN MENSAJE DE CONFIRMACIÓN AL INICIAR
+    enviar_notificacion(mensaje_inicio)
+
+    while True:
+        estado = consultar_estado()
+        print(f"[{time.strftime('%H:%M:%S')}] Estado actual: {estado}", flush=True)
+        
+        if estado and "DESTINO" in estado.upper():
+            enviar_notificacion(f"🚨 ¡Tu pedido de Shalom (Guía {NRO_GUIA}) ya llegó a la agencia de destino!")
+            print("Notificación de llegada enviada.", flush=True)
+            break
+            
+        time.sleep(1800)  # Consulta cada 30 minutos
