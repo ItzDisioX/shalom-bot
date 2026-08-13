@@ -1,8 +1,23 @@
 import os
 import time
+import threading
 import requests
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
-# Lee las variables del entorno del servidor por seguridad
+# --- MINISERVIDOR PARA RENDER FREE ---
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write(b"Bot de Shalom corriendo exitosamente!")
+
+def run_web_server():
+    port = int(os.getenv("PORT", 8080))
+    server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
+    server.serve_forever()
+
+# --- CONFIGURACIÓN DE TU RASTREADOR ---
 NRO_GUIA = os.getenv("NRO_GUIA", "91465467")
 CODIGO_ENVIO = os.getenv("CODIGO_ENVIO", "339J")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8814913036:AAFa2NxxAfdoLaTLokSs9YUwjP1rchmlCiU")
@@ -17,7 +32,8 @@ def enviar_notificacion(mensaje):
         print(f"Error enviando mensaje: {e}")
 
 def consultar_estado():
-    url = f"https://rastrea.shalom.pe/api/v1/tracking?numero={NRO_GUIA}&codigo={CODIGO_ENVIO}"
+    # URL actualizada para el rastreo oficial
+    url = f"https://shalom.com.pe/rastrea/api/v1/tracking?numero={NRO_GUIA}&codigo={CODIGO_ENVIO}"
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     try:
         response = requests.get(url, headers=headers, timeout=10)
@@ -41,4 +57,7 @@ def ejecutar_monitoreo():
         time.sleep(1800)  # Revisa cada 30 minutos
 
 if __name__ == "__main__":
+    # Inicia el miniservidor web en segundo plano
+    threading.Thread(target=run_web_server, daemon=True).start()
+    # Inicia el monitoreo de Shalom
     ejecutar_monitoreo()
