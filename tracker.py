@@ -53,7 +53,7 @@ def ejecutar_monitoreo():
             enviar_notificacion(f"🚨 ¡Tu pedido de Shalom (Guía {NRO_GUIA}) ya llegó a la agencia de destino!")
             print("Notificación enviada. Tarea finalizada.")
             break
-            
+            enviar_notificacion("🤖 Prueba: ¡El bot está activo y rastreando tu paquete!")
         time.sleep(1800)  # Revisa cada 30 minutos
 
 if __name__ == "__main__":
