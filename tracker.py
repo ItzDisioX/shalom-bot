@@ -33,11 +33,22 @@ def enviar_notificacion(mensaje):
 
 def consultar_estado():
     url = f"https://shalom.com.pe/rastrea/api/v1/tracking?numero={NRO_GUIA}&codigo={CODIGO_ENVIO}"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Referer": "https://shalom.com.pe/rastrea/"
+    }
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=15)
         if response.status_code == 200:
-            return response.json().get("status_name", "Desconocido")
+            data = response.json()
+            # Si la API devuelve una lista o dict
+            if isinstance(data, list) and len(data) > 0:
+                return data[0].get("status_name", "Desconocido")
+            elif isinstance(data, dict):
+                return data.get("status_name") or data.get("estado") or "Desconocido"
+        else:
+            print(f"Respuesta HTTP {response.status_code} de Shalom", flush=True)
     except Exception as e:
         print(f"Error consultando el sitio: {e}", flush=True)
     return None
