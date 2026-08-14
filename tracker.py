@@ -87,4 +87,44 @@ def ejecutar_monitoreo():
 
 if __name__ == "__main__":
     threading.Thread(target=run_web_server, daemon=True).start()
-    ejecutar_monitoreo()
+def consultar_estado():
+    # URL de la API de Shalom
+    url = f"https://shalom.com.pe/rastrea/api/v1/tracking?numero={NRO_GUIA}&codigo={CODIGO_ENVIO}"
+    
+    # Headers completos para simular un navegador de verdad y evitar bloqueo 403/Cloudflare
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+        "Origin": "https://shalom.com.pe",
+        "Referer": "https://shalom.com.pe/rastrea/",
+        "Sec-Ch-Ua": '"Not)A;Brand";v="99", "Google Chrome";v="127", "Chromium";v="127"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"Windows"',
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin"
+    }
+    
+    try:
+        session = requests.Session()
+        # Primero hace un GET a la web principal para obtener cookies de sesión si las pide
+        session.get("https://shalom.com.pe/rastrea/", headers=headers, timeout=10)
+        
+        # Luego realiza la consulta real a la API
+        response = session.get(url, headers=headers, timeout=15)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if isinstance(data, list) and len(data) > 0:
+                return str(data[0].get("status_name", "Desconocido")).strip()
+            elif isinstance(data, dict):
+                estado = data.get("status_name") or data.get("estado") or data.get("status")
+                if estado:
+                    return str(estado).strip()
+        else:
+            print(f"Respuesta HTTP {response.status_code} al consultar Shalom", flush=True)
+    except Exception as e:
+        print(f"Error consultando el sitio de Shalom: {e}", flush=True)
+        
+    return None
