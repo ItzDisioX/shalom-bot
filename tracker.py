@@ -36,35 +36,38 @@ def enviar_notificacion(mensaje):
         print(f"Error enviando mensaje a Telegram: {e}", flush=True)
 
 def consultar_estado():
-    # Usamos la API pública directa agregando parámetros de evasión de caché y headers de app móvil
-    url = f"https://shalom.com.pe/rastrea/api/v1/tracking?numero={NRO_GUIA}&codigo={CODIGO_ENVIO}&_t={int(time.time())}"
+    target_url = f"https://shalom.com.pe/rastrea/api/v1/tracking?numero={NRO_GUIA}&codigo={CODIGO_ENVIO}"
+    
+    # 1. Intentamos pasar por una pasarela que limpia bloqueos HTTP 403 / Cloudflare
+    proxy_url = f"https://api.allorigins.win/get?url={requests.utils.quote(target_url)}"
     
     headers = {
-        "User-Agent": "okhttp/4.9.2",  # Firma de la app móvil oficial de Shalom
-        "Accept": "application/json",
-        "Connection": "keep-alive"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
     
     try:
-        response = requests.get(url, headers=headers, timeout=15)
+        response = requests.get(proxy_url, headers=headers, timeout=15)
         
-        # Si la web nos bloquea, intentamos por la pasarela de la API secundaria
-        if response.status_code != 200 or not response.text.strip().startswith(("{", "[")):
-            url_alt = f"https://api.allorigins.win/raw?url=" + requests.utils.quote(f"https://shalom.com.pe/rastrea/api/v1/tracking?numero={NRO_GUIA}&codigo={CODIGO_ENVIO}")
-            response = requests.get(url_alt, timeout=15)
-
         if response.status_code == 200:
-            data = response.json()
-            if isinstance(data, list) and len(data) > 0:
-                return str(data[0].get("status_name", "Desconocido")).strip()
-            elif isinstance(data, dict):
-                estado = data.get("status_name") or data.get("estado") or data.get("status")
-                if estado:
-                    return str(estado).strip()
+            wrapper_data = response.json()
+            contents = wrapper_data.get("contents")
+            
+            if contents:
+                # La pasarela nos devuelve el JSON original de Shalom dentro de "contents"
+                import json
+                data = json.loads(contents)
+                
+                if isinstance(data, list) and len(data) > 0:
+                    return str(data[0].get("status_name", "Desconocido")).strip()
+                elif isinstance(data, dict):
+                    estado = data.get("status_name") or data.get("estado") or data.get("status")
+                    if estado:
+                        return str(estado).strip()
         else:
-            print(f"Respuesta HTTP {response.status_code} de Shalom", flush=True)
+            print(f"Respuesta HTTP {response.status_code} desde la pasarela", flush=True)
     except Exception as e:
-        print(f"Error en consulta: {e}", flush=True)
+        print(f"Error consultando el sitio: {e}", flush=True)
+        
     return None
 
 def ejecutar_monitoreo():
