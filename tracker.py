@@ -29,7 +29,7 @@ def enviar_notificacion(mensaje):
     try:
         requests.post(url, json=payload, timeout=10)
     except Exception as e:
-        print(f"Error enviando mensaje: {e}", flush=True)
+        print(f"Error enviando mensaje a Telegram: {e}", flush=True)
 
 def consultar_estado():
     url = f"https://shalom.com.pe/rastrea/api/v1/tracking?numero={NRO_GUIA}&codigo={CODIGO_ENVIO}"
@@ -42,31 +42,47 @@ def consultar_estado():
         response = requests.get(url, headers=headers, timeout=15)
         if response.status_code == 200:
             data = response.json()
-            # Si la API devuelve una lista o dict
+            # Intenta extraer el nombre del estado según la estructura que devuelva la API
             if isinstance(data, list) and len(data) > 0:
-                return data[0].get("status_name", "Desconocido")
+                return str(data[0].get("status_name", "Desconocido")).strip()
             elif isinstance(data, dict):
-                return data.get("status_name") or data.get("estado") or "Desconocido"
+                estado = data.get("status_name") or data.get("estado") or data.get("status")
+                if estado:
+                    return str(estado).strip()
         else:
             print(f"Respuesta HTTP {response.status_code} de Shalom", flush=True)
     except Exception as e:
-        print(f"Error consultando el sitio: {e}", flush=True)
+        print(f"Error consultando el sitio de Shalom: {e}", flush=True)
     return None
 
 def ejecutar_monitoreo():
-    mensaje_inicio = f"🤖 Bot de Shalom activo. Rastreando guía {NRO_GUIA}..."
-    print(mensaje_inicio, flush=True)
-    enviar_notificacion(mensaje_inicio)
+    print(f"Iniciando monitoreo de cambios para guía {NRO_GUIA}...", flush=True)
+    
+    ultimo_estado = None
 
     while True:
-        estado = consultar_estado()
-        print(f"[{time.strftime('%H:%M:%S')}] Estado actual: {estado}", flush=True)
+        estado_actual = consultar_estado()
         
-        if estado and "DESTINO" in estado.upper():
-            enviar_notificacion(f"🚨 ¡Tu pedido de Shalom (Guía {NRO_GUIA}) ya llegó a la agencia de destino!")
-            print("Notificación enviada.", flush=True)
-            break
+        if estado_actual:
+            print(f"[{time.strftime('%H:%M:%S')}] Estado detectado: '{estado_actual}'", flush=True)
             
+            # Si es la primera consulta o el estado cambió respecto al anterior
+            if ultimo_estado is None:
+                ultimo_estado = estado_actual
+                enviar_notificacion(f"🤖 Monitoreo iniciado para Guía {NRO_GUIA}.\n📌 Estado actual: *{estado_actual}*")
+            elif estado_actual.upper() != ultimo_estado.upper():
+                mensaje = f"📦 ¡ACTUALIZACIÓN DE TU PAQUETE!\n\nGuía: {NRO_GUIA}\nEstado anterior: {ultimo_estado}\n👉 Nuevo Estado: *{estado_actual}*"
+                enviar_notificacion(mensaje)
+                print(f"Cambio de estado notificado: {ultimo_estado} -> {estado_actual}", flush=True)
+                ultimo_estado = estado_actual
+                
+                # Si el estado indica que ya fue entregado/recojido, podemos detener el ciclo
+                if any(kw in estado_actual.upper() for kw in ["ENTREGADO", "RECOGIDO", "FINALIZADO"]):
+                    enviar_notificacion(f"✅ Encomienda {NRO_GUIA} entregada. Monitoreo finalizado.")
+                    break
+        else:
+            print(f"[{time.strftime('%H:%M:%S')}] No se pudo obtener el estado en este intento.", flush=True)
+
         time.sleep(1800)  # Revisa cada 30 minutos
 
 if __name__ == "__main__":
