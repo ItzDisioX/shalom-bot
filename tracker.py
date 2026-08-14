@@ -36,14 +36,23 @@ def enviar_notificacion(mensaje):
         print(f"Error enviando mensaje a Telegram: {e}", flush=True)
 
 def consultar_estado():
-    url = f"https://shalom.com.pe/rastrea/api/v1/tracking?numero={NRO_GUIA}&codigo={CODIGO_ENVIO}"
+    # Usamos la API pública directa agregando parámetros de evasión de caché y headers de app móvil
+    url = f"https://shalom.com.pe/rastrea/api/v1/tracking?numero={NRO_GUIA}&codigo={CODIGO_ENVIO}&_t={int(time.time())}"
+    
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "Referer": "https://shalom.com.pe/rastrea/"
+        "User-Agent": "okhttp/4.9.2",  # Firma de la app móvil oficial de Shalom
+        "Accept": "application/json",
+        "Connection": "keep-alive"
     }
+    
     try:
         response = requests.get(url, headers=headers, timeout=15)
+        
+        # Si la web nos bloquea, intentamos por la pasarela de la API secundaria
+        if response.status_code != 200 or not response.text.strip().startswith(("{", "[")):
+            url_alt = f"https://api.allorigins.win/raw?url=" + requests.utils.quote(f"https://shalom.com.pe/rastrea/api/v1/tracking?numero={NRO_GUIA}&codigo={CODIGO_ENVIO}")
+            response = requests.get(url_alt, timeout=15)
+
         if response.status_code == 200:
             data = response.json()
             if isinstance(data, list) and len(data) > 0:
